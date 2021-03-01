@@ -1,0 +1,24 @@
+# entire lines can be commented out with the "#" character
+# Propeller Diameter [mm]
+600
+# Hub Diameter [mm]
+101
+# r/R c/R  Airfoil  beta dx/R
+0.167 0.12 NACA_0024.csv 51.8 0.06
+0.172 0.11 NACA_0024.csv 51.8 0.055
+0.180 0.102 NACA_0024.csv 51 0.051
+0.190 0.1 NACA_4418.csv 50.6 0.05
+0.200 0.1 NACA_4418.csv 48 0.05
+0.30 0.1 NACA_4412.csv 35 0.05
+0.35 0.12 NACA_4412.csv 32.5 0.056
+0.40 0.16 NACA_4412.csv 27 0.066
+0.50 0.12 NACA_4412.csv 23 0.062
+0.60 0.08 NACA_4412.csv 20 0.05
+0.70 0.06 NACA_4412.csv 17.7 0.042
+0.80 0.04 NACA_4412.csv 15.8 0.03
+0.90 0.022 NACA_4412.csv 15.5 0.014
+0.93 0.018 NACA_4412.csv 14.6 0.008
+0.96 0.013 NACA_4412.csv 14.5 0.002
+0.98 0.01 NACA_4412.csv 14.3 -0.004
+0.99 0.008 NACA_4412.csv 14.2 -0.008
+1.00 0.002 NACA_4412.csv 14.2 -0.016
