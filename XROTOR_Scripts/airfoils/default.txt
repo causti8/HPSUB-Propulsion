@@ -1,0 +1,2 @@
+  ref_Re      0-lift     dcl/da  dcl/da@stall  cl_max      cl_min   dCL@stall    cm_avg     min Cd    CL@CDmin     CD2         r         mach
+ 7.00E+04       -5         5.8       0.1        1.2         -0.3       0.1        -0.1       0.02        0.6       0.05      -0.70        0.6
