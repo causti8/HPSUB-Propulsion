@@ -5,7 +5,7 @@ import speed_calculations
 import matplotlib.pyplot as plt
 
 
-geometry = make_prop.PropGeom('prop_1')
+geometry = make_prop.PropGeom('test_prop')
 geometry.init_aero()         # gets airfoil performance data from airfoil_data folder
 
 aluminum = {
@@ -13,6 +13,7 @@ aluminum = {
     'elastic_modulus': 69e9,
     'poissons': 0.3
 }
+
 geometry.init_structural(aluminum)   # sets the structural information about airfoil
 
 
@@ -34,6 +35,8 @@ water = {'density': 1000,
 pwr = 300
 design_pwr = designs.ConstantPower(geometry, pwr, vel_aero, 'out\\ConstPwr', eval_structural, rpm0=300)
 
+design_pwr.set_betz(pwr, 3, True)
+'''
 design_pwr.evaluate_aero()
 design_pwr.compile_data()
 
@@ -44,7 +47,7 @@ design_pwr.plot_aero('RPM', save=True)
 design_pwr.plot_aero('coefficients', save=True)
 
 design_pwr.plot_struct('von_misses', save=True)
-# '''
+'''
 
 # Constant RPM Design
 '''
@@ -80,10 +83,10 @@ design_vpp.plot_aero('RPM', save=True)
 design_vpp.plot_aero('coefficients', save=True)
 
 design_rpm.plot_struct('von_misses', save=True)
-# '''
+'''
 
 # Speed Prediction plot
-# '''
+'''
 drag_coef = 0.04
 frontal_area = 0.2636
 sub_mass = 400.2
@@ -93,4 +96,4 @@ final_gate = 50
 
 # any of the design objects, drag coefficient, frontal area of sub, and sub mass
 speed_pwr = speed_calculations.RaceSpeed(design_pwr, drag_coef, frontal_area, sub_mass)
-# '''
+'''
