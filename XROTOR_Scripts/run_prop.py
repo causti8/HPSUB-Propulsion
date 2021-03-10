@@ -64,6 +64,7 @@ def init_foils(xr, prop):
         xr(prop.r_over_r[i])
     xr('del 1')
     xr('y')
+    xr("")
 
 
 # sets the aerodynamic properties for each airfoil section
