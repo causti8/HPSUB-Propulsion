@@ -60,7 +60,6 @@ class ConstantPower:
         run_prop.run_betz(self.geom, vel, self.rpm0, "VRTX", "betz_temp", self.fluid, pwr, verbose)
 
 
-
     # meant to be called after the object is created. Gets aeronautical data by running information through XROTOR.
     def evaluate_aero(self, verbose=False):
         self.folder.reset_data()    # resets the base out_folder if it exists and makes a new one

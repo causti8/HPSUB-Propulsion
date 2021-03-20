@@ -12,6 +12,7 @@ def init_population(num_sections, initial_geom):
 
 
 
+
 # evaluate parent generation
 def single_loop(parents, eval_function):
     # constants
@@ -29,8 +30,8 @@ def single_loop(parents, eval_function):
 
     # decide the number of children to have
     num_children = np.floor(percent_children * len(parents))
-    # average probability of replication
-    CXPB = 0.5 / len(parents)
+    # probability of reproduction
+    CXPB = 0.1
 
     # create the combinations to have children
     couple = []
@@ -38,22 +39,25 @@ def single_loop(parents, eval_function):
         mean_fitness = np.nanmean(fitness)
         std_fitness = np.nanstd(fitness)
 
-        for individual in parents:
-            if not np.isnan(individual['cost']):
-                scaling_factor = 1 + (individual['cost'] - mean_fitness) / std_fitness
-                if random.random() < CXPB*scaling_factor:
-                    couple.append(individual)
-                    if len(couple) == 2:
-                        children.append(make_child(couple[0], couple[1]))
-                        couple = []
-                        if not len(children) < num_children:
-                            break
+        # select a random individual
+        individual = parents[random.randint(0, len(parents))]
+
+        # if the propeller converge
+        if not np.isnan(individual['cost']):
+            # makes having a child more or less likely based on fitness
+            scaling_factor = 1 + (individual['cost'] - mean_fitness) / std_fitness
+
+            if random.random() < CXPB*scaling_factor:
+                couple.append(individual)
+                if len(couple) == 2:
+                    children.append(make_child(couple[0], couple[1]))
+                    couple = []
 
     # creating mutations
     MUTPB = 0.2 / (len(parents))
     while len(children) < num_children:
         for individual in parents:
-            if random.random < MUTPB:
+            if random.random() < MUTPB:
                 children.append(mutate(individual))
                 if not len(children) < num_children:
                     break
