@@ -186,7 +186,7 @@ def make_func(speed, power, fluid, material, stress_max):
         
         design = designs.ConstantPower(geom, power, [0.1, speed], 'out\\ConstPwr', [True, False], fluid, rpm0=300)
         
-        design.evaluate_aero()
+        design.evaluate_performance()
         design.compile_data()
         design.eval_structural()
         

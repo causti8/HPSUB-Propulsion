@@ -40,7 +40,7 @@ pwr = 300
 design_pwr = designs.ConstantPower(geometry, pwr, vel_aero, 'out\\ConstPwr', eval_structural, rpm0=300)
 
 # '''
-# design_pwr.evaluate_aero()
+design_pwr.evaluate_performance()
 design_pwr.compile_data()
 
 design_pwr.plot_aero('thrust', save=True)

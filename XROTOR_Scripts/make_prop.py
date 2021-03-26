@@ -22,23 +22,22 @@ def structural_path(foil):
 # and aerodynamic performance information necessary for XROTOR
 # num_sections: the number of radial sections used to define propeller
 class PropGeom:
-    def __init__(self, propeller_file=None):
+    def __init__(self, propeller_file):
         r_over_r = []
         c_over_r = []
         foil_names = []
         beta = []
-        if propeller_file is not None:
-            with open(propeller_path(propeller_file)) as file:
-                self.diam = float(next_line(file))
-                self.hub_diam = float(next_line(file))
-                self.blades = int(next_line(file))
-                for line in file:
-                    if line[0] != '#':
-                        line_arr = line.split()
-                        r_over_r.append(float(line_arr[0]))
-                        c_over_r.append(float(line_arr[1]))
-                        foil_names.append(line_arr[2])
-                        beta.append(float(line_arr[3]))
+        with open(propeller_path(propeller_file)) as file:
+            self.diam = float(next_line(file))
+            self.hub_diam = float(next_line(file))
+            self.blades = int(next_line(file))
+            for line in file:
+                if line[0] is not '#':
+                    line_arr = line.split()
+                    r_over_r.append(float(line_arr[0]))
+                    c_over_r.append(float(line_arr[1]))
+                    foil_names.append(line_arr[2])
+                    beta.append(float(line_arr[3]))
         self.num_sections = len(beta)
         self.r_over_r = np.array(r_over_r, dtype=float)
         self.c_over_r = np.array(c_over_r, dtype=float)
