@@ -22,29 +22,33 @@ def structural_path(foil):
 # and aerodynamic performance information necessary for XROTOR
 # num_sections: the number of radial sections used to define propeller
 class PropGeom:
-    def __init__(self, propeller_file):
+    def __init__(self, propeller_file=None):
         r_over_r = []
         c_over_r = []
         foil_names = []
         beta = []
-        with open(propeller_path(propeller_file)) as file:
-            self.diam = float(next_line(file))
-            self.hub_diam = float(next_line(file))
-            self.blades = int(next_line(file))
-            for line in file:
-                if line[0] is not '#':
-                    line_arr = line.split()
-                    r_over_r.append(float(line_arr[0]))
-                    c_over_r.append(float(line_arr[1]))
-                    foil_names.append(line_arr[2])
-                    beta.append(float(line_arr[3]))
+
+        if propeller_file is not None:
+            with open(propeller_path(propeller_file)) as file:
+                self.diam = float(next_line(file))
+                self.hub_diam = float(next_line(file))
+                self.blades = int(next_line(file))
+                for line in file:
+                    if line[0] != '#':
+                        line_arr = line.split()
+                        r_over_r.append(float(line_arr[0]))
+                        c_over_r.append(float(line_arr[1]))
+                        foil_names.append(line_arr[2])
+                        beta.append(float(line_arr[3]))
+
         self.num_sections = len(beta)
         self.r_over_r = np.array(r_over_r, dtype=float)
         self.c_over_r = np.array(c_over_r, dtype=float)
         self.foil_names = np.array(foil_names, dtype=str)
         self.beta = np.array(beta, dtype=float)
+        self.name = propeller_file
 
-        # 3 keys: 'density', 'elastic_modulus', 'poissons'
+        # 3 keys: 'density', 'elastic_modulus', "poisson's"
         self.material = None
         # list of Foil objects at each radial location. Handles each airfoils performance information.
         self.foil_aero = []
@@ -78,7 +82,7 @@ class PropGeom:
         self.material = material
         for i in range(self.num_sections):
             self.foil_bend.append(FoilStruct(self.foil_names[i]))
-            self.foil_bend[i].set_material(material['density'], material['elastic_modulus'], material['poissons'])
+            self.foil_bend[i].set_material(material['density'], material['elastic_modulus'], material["poisson's"])
             self.foil_bend[i].set_chord(self.r_over_r[i] * self.diam / 2, self.c_over_r[i] * self.diam / 2)
 
     # writes out a file of the propellers structural properties in the format XROTOR wants
@@ -89,14 +93,13 @@ class PropGeom:
             file.write('   R      EIout     EIin     EA       GJ        EK       m'
                        '       MXX     xCG/c    xSC/C     rST \n')
 
-            for section in self.foil_bend:
-                rounded_dict = format_dictionary(section.main_dict)
-                file.write(
-                           f"{rounded_dict['R']} {rounded_dict['EIout']} {rounded_dict['EIin']} "
-                           f"{rounded_dict['EA']} {rounded_dict['GJ']} {rounded_dict['EK']} "
-                           f"{rounded_dict['M']} {rounded_dict['MXX']} {rounded_dict['XOCG']} "
-                           f"{rounded_dict['XOSC']} {rounded_dict['RST']}\n"
-                           )
+            mat = dict_to_mat(self.foil_bend)
+            mat = interp_colm(mat)
+
+            for section in range(mat.shape[0]):
+                for j in range(mat.shape[1]):
+                    file.write('  {:.2e}  '.format(mat[section, j]))
+                file.write('\n')
 
 
 # Class handles airfoil aerodynamic performance information
@@ -147,42 +150,38 @@ class FoilStruct:
     def __init__(self, airfoil):
         with open(structural_path(airfoil)) as file:
             # dictionary containing all the information from a foil structural file
-            self.file_dict = {}
-            self.file_dict.update({'A': get_third(file.readline())})
-            self.file_dict.update({'IYY': get_third(file.readline())})
-            self.file_dict.update({'IXX': get_third(file.readline())})
-            self.file_dict.update({'J': get_third(file.readline())})
-            self.file_dict.update({'XOCG': get_third(file.readline())})
-            self.file_dict.update({'RST': get_third(file.readline())})
-
-            # dictionary of structural information with material and chord length taken into account
-            self.main_dict = {}
+            self.A = get_third(file.readline())
+            self.IYY = get_third(file.readline())
+            self.IXX = get_third(file.readline())
+            self.J = get_third(file.readline())
+            self.XOCG = get_third(file.readline())
+            self.RST = get_third(file.readline())
 
     # sets the material of the airfoil section
     def set_material(self, rho, elastic_modulus, poissons_ratio):
         shear_modulus = elastic_modulus / (2 * (1+poissons_ratio))
-        self.main_dict.update({'EIin': elastic_modulus * self.file_dict['IXX']})
-        self.main_dict.update({'EIout': elastic_modulus * self.file_dict['IYY']})
-        self.main_dict.update({'EA': elastic_modulus * self.file_dict['A']})
-        self.main_dict.update({'GJ': shear_modulus * self.file_dict['J']})
-        self.main_dict.update({'EK': 0})
-        self.main_dict.update({'M': rho * self.file_dict['A']})
-        self.main_dict.update({'MXX': 0})
-        self.main_dict.update({'XOCG': self.file_dict['XOCG']})
-        self.main_dict.update({'XOSC': self.file_dict['XOCG']})
-        self.main_dict.update({'RST': self.file_dict['RST']})
+        self.EIin = elastic_modulus * self.IXX
+        self.EIout = elastic_modulus * self.IYY
+        self.EA = elastic_modulus * self.A
+        self.GJ = shear_modulus * self.J
+        self.EK = 0
+        self.M = rho * self.A
+        self.MXX = 0
+        self.mXOCG = self.XOCG
+        self.XOSC = self.XOCG
+        self.RST = self.RST
 
     # sets the chord length of the airfoil section
     # radius: radial location of section
     # chord: chord length of section
     def set_chord(self, radius, chord):
-        self.main_dict.update({'R': radius})
-        self.main_dict['EIin'] = chord**4 * self.main_dict['EIin']
-        self.main_dict['EIout'] = chord**4 * self.main_dict['EIout']
-        self.main_dict['EA'] = chord**2 * self.main_dict['EA']
-        self.main_dict['GJ'] = chord**4 * self.main_dict['GJ']
-        self.main_dict['M'] = chord**2 * self.main_dict['M']
-        self.main_dict['RST'] = chord * self.file_dict['RST']
+        self.R = radius
+        self.EIin = chord**4 * self.EIin
+        self.EIout = chord**4 * self.EIout
+        self.EA = chord**2 * self.EA
+        self.GJ = chord**4 * self.GJ
+        self.M = chord**2 * self.M
+        self.RST = chord * self.RST
 
 
 # makes sure to skip over lines with # at the start
@@ -199,6 +198,28 @@ def format_dictionary(data):
     for key, value in data.items():
         string_data.update({key: f"{value:.2E}"})
     return string_data
+
+
+def dict_to_mat(data):
+    mat = []
+    for section in data:
+        vect = [section.R, section.EIout, section.EIin, section.EA, section.GJ, section.EK, section.M, section.MXX,
+                section.XOCG, section.XOSC, section.RST]
+        mat.append(vect)
+    mat = np.array(mat)
+    return mat
+
+
+def interp_colm(mat):
+    SECTIONS = 30
+    _, colm_count = mat.shape
+    new_mat = np.zeros([SECTIONS, colm_count])
+
+    rr = np.linspace(mat[0, 0], mat[-1, 0], SECTIONS, endpoint=True)
+    new_mat[:, 0] = rr
+    for colm in range(1, colm_count):
+        new_mat[:, colm] = np.interp(rr, mat[:, 0], mat[:, colm])
+    return new_mat
 
 
 # returns the third token in a string. Used for reading structural files

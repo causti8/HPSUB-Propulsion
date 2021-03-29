@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 class RaceSpeed:
     def __init__(self, design, drag_coef, frontal_area, sub_mass):
         self.num_refined = 500
-        self.write_file = design.folder.speed_file
-        self.plot_file = os.path.join(design.folder.aero_plots, 'displacement.png')
+        self.write_file = design.speed_file
+        self.plot_file = os.path.join(design.aero_plots, 'displacement.png')
         self.vel_list = design.vel_list
         self.vel_refined = np.zeros(self.num_refined)
         self.max_speed = np.NaN
@@ -77,20 +77,19 @@ class RaceSpeed:
         return x, x_ideal
 
     def _calc_ideal_speed(self, design, drag_coef, frontal_area, sub_mass):
-        pwr = design.power
-        thrust = pwr / self.vel_list
-        drag = design.fluid['density'] * frontal_area * design.vel_list ** 2 * drag_coef
-        numerator = (sub_mass * design.vel_list)
+        pwr = design.const_power
+        self.vel_refined = np.linspace(min(design.vel_list), max(design.vel_list), self.num_refined)
+        thrust = pwr / self.vel_refined
+        drag = design.fluid['density'] * frontal_area * self.vel_refined ** 2 * drag_coef
+        numerator = (sub_mass * self.vel_refined)
         denominator = thrust - drag
         integrand = numerator / denominator
         negative_indices = integrand < 0
         integrand[negative_indices] = np.NaN
         self.vel_refined = np.linspace(min(design.vel_list), max(design.vel_list), self.num_refined)
-        yy = np.interp(self.vel_refined, design.vel_list, integrand)
-
         x = np.zeros(self.num_refined)
         x[0] = 0
-        x[1:] = scipy.integrate.cumtrapz(yy, self.vel_refined)
+        x[1:] = scipy.integrate.cumtrapz(integrand, self.vel_refined)
         return x
 
 

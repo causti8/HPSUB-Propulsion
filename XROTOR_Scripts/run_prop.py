@@ -1,5 +1,5 @@
 import xrotor
-import file_tools
+import os
 
 
 # sets all the initial information needed for running XROTOR. This includes fluid properties, propeller geometry,
@@ -10,11 +10,11 @@ def initialize_xrotor(geom, vel, rpm, solver, fluid, verbose):
 
     # sets the fluid properties
     xr(f"DENS {fluid['density']}")
-    xr(f"VISC {fluid['viscosity']*fluid['density']}")
+    xr(f"VISC {fluid['kinematic_viscosity']*fluid['density']}")
     xr(f"VSOU {fluid['speed_sound']}")
 
     set_geom(xr, geom)          # sets the shape of the blade
-    geom.set_re_blade(vel, rpm, fluid['viscosity'])   # sets the reynolds number at each radial section
+    geom.set_re_blade(vel, rpm, fluid['kinematic_viscosity'])   # sets the reynolds number at each radial section
 
     init_foils(xr, geom)
     set_foils(xr, geom)         # sets the each foils aerodynamic coefficients
@@ -27,7 +27,7 @@ def initialize_xrotor(geom, vel, rpm, solver, fluid, verbose):
     xr('')
 
     xr('ITER')
-    xr('60')
+    xr('120')
 
     xr("VELO")  # set forward velocity
     xr(vel)
@@ -104,35 +104,42 @@ def set_foils(xr, geom):
 # pwr: power to run the propeller at
 # verbose: True will cause the XROTOR inputs to be output to console
 def run(geom, vel, rpm, solver, outfile, fluid, pwr=False, verbose=False):
-    file_tools.overwrite(outfile)
+    overwrite(outfile)
     xr = initialize_xrotor(geom, vel, rpm, solver, fluid, verbose)
+
+    xr("RPM")          # set RPM
+    xr(rpm)
 
     if pwr is not False:
         xr("POWE")  # set RPM
         xr(pwr)
         xr("P")
-    else:
-        xr("RPM")          # set RPM
-        xr(rpm)
 
     xr("WRIT")         # write to file
     xr(outfile)
     xr("")             # exit to main menu
+
+    # xr("VPUT")
+    # xr("test.txt")
     xr.finalize()
 
 
 def evaluate_strength(geom, vel, rpm, solver, struct_file, outfile, liquid, verbose, pwr=None):
-    file_tools.overwrite(outfile)
-    file_tools.overwrite('temp_aero.txt')
+    overwrite(outfile)
+    overwrite('temp_aero.txt')
 
     xr = initialize_xrotor(geom, vel, rpm, solver, liquid, verbose)
-    if pwr is None:
-        xr("RPM")
-        xr(rpm)
-    if pwr is not None:
-        xr("POWE")
+
+    xr("RPM")  # set RPM
+    xr(rpm)
+
+    if pwr is not False:
+        xr("POWE")  # set RPM
         xr(pwr)
         xr("P")
+
+
+
     xr("")
 
     xr("BEND")
@@ -140,4 +147,14 @@ def evaluate_strength(geom, vel, rpm, solver, struct_file, outfile, liquid, verb
     xr("EVAL")
     xr(f"WRIT {outfile}")
     xr("")
+
+    # xr("VPUT")
+    # xr("test.txt")
+
     xr.finalize()
+
+
+
+def overwrite(file):
+    if os.path.isfile(file):
+        os.remove(file)
