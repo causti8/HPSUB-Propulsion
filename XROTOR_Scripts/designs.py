@@ -25,9 +25,8 @@ class ConstantPitchPropeller:
         self.fluid = fluid
         self.geom = geom
 
-        self.aero_data = pd.DataFrame(vel, columns=['vel'])
+        self.aero_vel = vel
         vel_bend = filter(lambda x: x != 0, vel*bend)
-        self.bend_data = pd.DataFrame(vel_bend, columns=['vel'])
 
         # default fluid to characteristics of water
         if fluid is None:
@@ -87,7 +86,9 @@ class ConstantPitchPropeller:
         # create the function that evaluates the aerodynamics
         self.run_aero = self._aero_eval(verbose)
 
+        self.aero_data.append(self.vel_file(self.vel))
         map(self._eval, self.aero_data['vel'])
+
 
     # Cycles through solvers to try to ensure convergence.
     # vel: velocity to evaluate aerodynamic data at
@@ -111,32 +112,19 @@ class ConstantPitchPropeller:
     # function to be defined in child classes
     def _eval(self, verbose):
         pass
-
+'''
     # compiles the data in the files output by XROTOR. Meant to be run after running evaluate_performance
     def compile_data(self):
-        self.aero_data['']
-
-
+        data = []
         for i, vel in enumerate(self.vel_list):
-
             file_name = self.vel_file(vel)
-            contents = file_tools.ExtractAero(file_name)
-
-            if contents.converged:
-                self.thrust_list[i] = contents.thrust
-                self.torque_list[i] = contents.torque
-                self.rpm_list[i] = contents.rpm
-                self.efficiency_list[i] = contents.efficiency
-                self.efficiency_ideal[i] = contents.efficiency_ideal
-                self.converged_list[i] = contents.converged
-                self.power[i] = contents.power
-
-                if self.vel_struct[i]:
-                    self.bend_data.append(file_tools.ExtractStructural(self.structural_file(self.vel_list[i])))
-                    self.bend_data[i].calc_stress(self.geom.material['elastic_modulus'],
-                                                  self.geom.material["poisson's"])
-                else:
-                    self.bend_data.append(None)
+            data.append()
+            if self.vel_struct[i]:
+                self.bend_data.append(file_tools.ExtractStructural(self.structural_file(self.vel_list[i])))
+                self.bend_data[i].calc_stress(self.geom.material['elastic_modulus'],
+                                              self.geom.material["poisson's"])
+            else:
+                self.bend_data.append(None)
 
             else:
                 self.torque_list[i] = np.NaN
@@ -149,24 +137,25 @@ class ConstantPitchPropeller:
         self.advance_ratio = calc_advance_ratio(self.vel_list, self.rpm_list, self.geom.diam)
         self.thrust_coef = calc_thrust_coef(self.fluid['density'], self.rpm_list, self.geom.diam, self.thrust_list)
         self.torque_coef = calc_torque_coef(self.fluid['density'], self.rpm_list, self.geom.diam, self.torque_list)
+'''
+\
+# creates performance plots
+# name: the name of the plot. ie. "thrust", "torque", "efficiency"
+# save: saves plot
+# disp: displays plot
+def plot_aero(self, name, save=False, disp=False):
+    graphing.single_plot(self, name)
+    if save:
+        make_folder(self.aero_plots)
+        plt.savefig(self.aero_plot_file(name))
+    display_plot(disp)
 
-    # creates performance plots
-    # name: the name of the plot. ie. "thrust", "torque", "efficiency"
-    # save: saves plot
-    # disp: displays plot
-    def plot_aero(self, name, save=False, disp=False):
-        graphing.single_plot(self, name)
-        if save:
-            make_folder(self.aero_plots)
-            plt.savefig(self.aero_plot_file(name))
-        display_plot(disp)
-
-    def plot_struct(self, name, save=False, disp=False):
-        graphing.single_struct_plot(self, name)
-        if save:
-            make_folder(self.structural_plots)
-            plt.savefig(self._bend_plot_file(name))
-        display_plot(disp)
+def plot_struct(self, name, save=False, disp=False):
+    graphing.single_struct_plot(self, name)
+    if save:
+        make_folder(self.structural_plots)
+        plt.savefig(self._bend_plot_file(name))
+    display_plot(disp)
 
 
 # ConstantPower is a object used to calculate, compile and  plot the performance of a fixed pitch

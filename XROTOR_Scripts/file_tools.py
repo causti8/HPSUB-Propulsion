@@ -1,6 +1,7 @@
 import os
 import shutil
 import numpy as np
+import pandas as pd
 
 
 # extracts the data from a XROTOR aerodynamic output file
@@ -19,12 +20,6 @@ def extract_aero(file_name):
             if 'Eff ideal' in line:
                 _, data['efficiency_ideal'], _ = remove_words(line)
 
-    def safe_float(word):
-        try:
-            return float(word)
-        except:
-            return np.NaN
-
 
 # takes in a line from an aerodynamic file and parses the line into 3 numbers
 def safe_float(word):
@@ -39,6 +34,14 @@ def remove_words(line):
     token_2 = safe_float(line[40:54].strip())
     token_3 = safe_float(line[66:-1].strip())
     return token_1, token_2, token_3
+
+
+def extract_bend(file_name):
+    new_file_name = file_name.replace('.txt', '.csv')
+    convert_txt_to_csv(file_name, new_file_name)
+    num_sections = 30
+    data1 = pd.read_csv(new_file_name, skiprows=(0, 2), nrows=num_sections)
+    return data1
 
 
 # extracts the data from a XROTOR structural output file
@@ -143,3 +146,10 @@ def clear_path(path):
 def make_folder(path):
     if not os.path.exists(path):
         os.mkdir(path)
+
+
+def convert_txt_to_csv(in_filepath, out_filepath):
+    with open(in_filepath, 'r') as in_f:
+        with open(out_filepath, 'w') as out_f:
+            for line in in_f:
+                out_f.write(','.join(line.split()) + '\n')

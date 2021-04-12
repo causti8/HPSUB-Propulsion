@@ -3,8 +3,12 @@ import prop_geom
 import designs
 import speed_calculations
 import matplotlib.pyplot as plt
+import file_tools
 
+d1 = file_tools.extract_bend('out\\Prop_1\\structural\\0.79.txt')
+print()
 
+'''
 aluminum = {
     'density': 2710,
     'elastic_modulus': 69e9,
@@ -41,6 +45,8 @@ water = {'density': 1000,
 # Constant Power Design
 power = 300
 design_pwr = designs.ConstantPower(power, geometry, vel_aero, eval_structural, water, rpm0=300)
+'''
+
 '''
 # design_pwr.evaluate_performance(verbose=True)
 design_pwr.compile_data()
