@@ -1,6 +1,0 @@
-Area A =   0.12329128
-solid Ixx   =  2.40886657E-04
-solid Iyy   =   6.80406764E-03
-solid J     =  9.18691570E-04
-centroid   Xc  =  0.42042729
-max Y-Yc  =  9.77655724E-02

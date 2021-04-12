@@ -1,20 +1,27 @@
 import numpy as np
-import make_prop
+import prop_geom
 import designs
 import speed_calculations
 import matplotlib.pyplot as plt
 
 
-geometry = make_prop.PropGeom('Prop_2')
-geometry.init_aero()         # gets airfoil performance data from airfoil_data folder
+aluminum = {
+    'density': 2710,
+    'elastic_modulus': 69e9,
+    "poissons": 0.3
+}
+
+geometry = prop_geom.PropGeom('Prop_1', material=aluminum)
+geometry.set_aero(4, 500, 1e-6, 1000)
+geometry.write_aero('aero_test.csv')
+geometry.write_bend('bend_test.csv')
+
 
 aluminum = {
     'density': 2710,
     'elastic_modulus': 69e9,
     "poisson's": 0.3
 }
-
-geometry.init_structural(aluminum)   # sets the structural information about airfoil
 
 
 a = np.linspace(0.1, 2.5, 8)
@@ -32,13 +39,9 @@ water = {'density': 1000,
          }
 
 # Constant Power Design
-# '''
-
-geometry.beta = geometry.beta
-
 power = 300
 design_pwr = designs.ConstantPower(power, geometry, vel_aero, eval_structural, water, rpm0=300)
-
+'''
 # design_pwr.evaluate_performance(verbose=True)
 design_pwr.compile_data()
 
@@ -49,10 +52,10 @@ design_pwr.plot_aero('RPM', save=True)
 design_pwr.plot_aero('coefficients', save=True)
 
 design_pwr.plot_struct('von_misses', save=True)
-# '''
+
 
 # Constant RPM Design
-'''
+
 rpm = 400
 design_rpm = designs.ConstantRPM(geometry, rpm, vel_aero, 'out\\ConstantRPM', eval_structural, water)
 
@@ -66,10 +69,9 @@ design_rpm.plot_aero('RPM', save=True)
 design_rpm.plot_aero('coefficients', save=True)
 
 design_rpm.plot_struct('von_misses', save=True)
-'''
+
 
 # Constant Power Variable Pitch Design
-# '''
 power = 300
 offset_list = np.linspace(-10, 10, 6)
 design_vpp = designs.VariablePitch(power, geometry, vel_aero, offset_list, eval_structural, fluid=None,
@@ -85,10 +87,10 @@ design_vpp.plot_aero('RPM', save=True)
 design_vpp.plot_aero('coefficients', save=True)
 
 design_vpp.plot_struct('von_misses', save=True)
-# '''
+
 
 # Speed Prediction plot
-# '''
+
 drag_coef = 0.04
 frontal_area = 0.2636
 sub_mass = 400.2
@@ -118,5 +120,4 @@ plt.show()
 
 
 
-
-# '''
+'''

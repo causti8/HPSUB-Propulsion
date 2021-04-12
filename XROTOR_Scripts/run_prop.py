@@ -14,7 +14,7 @@ def initialize_xrotor(geom, vel, rpm, solver, fluid, verbose):
     xr(f"VSOU {fluid['speed_sound']}")
 
     set_geom(xr, geom)          # sets the shape of the blade
-    geom.set_re_blade(vel, rpm, fluid['kinematic_viscosity'])   # sets the reynolds number at each radial section
+    geom.set_re(vel, rpm, fluid['kinematic_viscosity'])   # sets the reynolds number at each radial section
 
     init_foils(xr, geom)
     set_foils(xr, geom)         # sets the each foils aerodynamic coefficients

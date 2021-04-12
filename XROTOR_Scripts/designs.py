@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import graphing
 import shutil
+import pandas as pd
 
 
 # this is the generic constant pitch propeller class. It should never be used, it is here to act as a base for the
@@ -20,27 +21,13 @@ class ConstantPitchPropeller:
     # vel_structural: a 1d array boolean array indicating whether to evaluate stress at corresponding vel_aero velocity
     # fluid: dictionary containing the properties of the fluid the propeller is in
 
-    def __init__(self, geom, vel_aero, vel_struct=None, fluid=None, out_folder=None):
+    def __init__(self, geom, vel, bend, fluid=None, out_folder=None):
         self.fluid = fluid
         self.geom = geom
-        self.vel_list = vel_aero
-        self.converged_list = np.zeros(len(self.vel_list))
-        self.thrust_list = np.zeros(len(self.vel_list))
-        self.torque_list = np.zeros(len(self.vel_list))
-        self.rpm_list = np.zeros(len(self.vel_list))
-        self.efficiency_list = np.zeros(len(self.vel_list))
-        self.efficiency_ideal = np.zeros(len(self.vel_list))
-        self.advance_ratio = np.zeros(len(self.vel_list))
-        self.torque_coef = np.zeros(len(self.vel_list))
-        self.thrust_coef = np.zeros(len(self.vel_list))
-        self.power = np.zeros(len(self.vel_list))
-        self.structural = []
 
-        # default to not evaluating stress at any velocities
-        if vel_struct is None:
-            self.vel_struct = np.zeros(len(vel_aero), dtype=bool)
-        else:
-            self.vel_struct = vel_struct
+        self.aero_data = pd.DataFrame(vel, columns=['vel'])
+        vel_bend = filter(lambda x: x != 0, vel*bend)
+        self.bend_data = pd.DataFrame(vel_bend, columns=['vel'])
 
         # default fluid to characteristics of water
         if fluid is None:
@@ -81,7 +68,7 @@ class ConstantPitchPropeller:
         return os.path.join(self.aero_plots, name)
 
     # creates a structural plot file
-    def struct_plot_file(self, name):
+    def _bend_plot_file(self, name):
         return os.path.join(self.structural_plots, name)
 
     # meant to be called after the object is created. Evaluates the aerodynamic and structural performance of the
@@ -92,21 +79,15 @@ class ConstantPitchPropeller:
         clear_path(self.out_folder)
         make_folder(self.out_folder)
         make_folder(self.aero_folder)
-        if True in self.vel_struct:
+
+        if self.bend_data:
             make_folder(self.structural_folder)
-            self.geom.write_structural(self.structural_geometry)
+            self.geom.write_bend(self.structural_geometry)
 
         # create the function that evaluates the aerodynamics
         self.run_aero = self._aero_eval(verbose)
 
-        # loop where the propeller is evaluated at each velocity
-        for vel, struct in zip(self.vel_list, self.vel_struct):
-            # evaluating aerodynamic properties
-            rpm, solver, converged = self._get_convergence(vel)
-            if struct:
-                # if the data is not aerodynamic data didn't converge don't bother running structural
-                if converged:
-                    self._structural_eval(vel, solver, verbose)
+        map(self._eval, self.aero_data['vel'])
 
     # Cycles through solvers to try to ensure convergence.
     # vel: velocity to evaluate aerodynamic data at
@@ -128,15 +109,14 @@ class ConstantPitchPropeller:
         return contents.rpm, solver, contents.converged
 
     # function to be defined in child classes
-    def _aero_eval(self, verbose):
-        pass
-
-    # function to be defined in child classes
-    def _structural_eval(self, vel, solver, verbose):
+    def _eval(self, verbose):
         pass
 
     # compiles the data in the files output by XROTOR. Meant to be run after running evaluate_performance
     def compile_data(self):
+        self.aero_data['']
+
+
         for i, vel in enumerate(self.vel_list):
 
             file_name = self.vel_file(vel)
@@ -152,11 +132,11 @@ class ConstantPitchPropeller:
                 self.power[i] = contents.power
 
                 if self.vel_struct[i]:
-                    self.structural.append(file_tools.ExtractStructural(self.structural_file(self.vel_list[i])))
-                    self.structural[i].calc_stress(self.geom.material['elastic_modulus'],
-                                                   self.geom.material["poisson's"])
+                    self.bend_data.append(file_tools.ExtractStructural(self.structural_file(self.vel_list[i])))
+                    self.bend_data[i].calc_stress(self.geom.material['elastic_modulus'],
+                                                  self.geom.material["poisson's"])
                 else:
-                    self.structural.append(None)
+                    self.bend_data.append(None)
 
             else:
                 self.torque_list[i] = np.NaN
@@ -164,7 +144,7 @@ class ConstantPitchPropeller:
                 self.rpm_list[i] = np.NaN
                 self.efficiency_list[i] = np.NaN
                 self.efficiency_ideal[i] = np.NaN
-                self.structural.append(None)
+                self.bend_data.append(None)
 
         self.advance_ratio = calc_advance_ratio(self.vel_list, self.rpm_list, self.geom.diam)
         self.thrust_coef = calc_thrust_coef(self.fluid['density'], self.rpm_list, self.geom.diam, self.thrust_list)
@@ -185,7 +165,7 @@ class ConstantPitchPropeller:
         graphing.single_struct_plot(self, name)
         if save:
             make_folder(self.structural_plots)
-            plt.savefig(self.struct_plot_file(name))
+            plt.savefig(self._bend_plot_file(name))
         display_plot(disp)
 
 
@@ -194,8 +174,8 @@ class ConstantPitchPropeller:
 class ConstantPower(ConstantPitchPropeller):
     # power: a float describing the amount of power supplied to the propeller
     # rpm0: estimated propeller rpm used to calculate reynolds number
-    def __init__(self, power, geom, vel_aero, vel_struct=None, fluid=None, out_folder=None, rpm0=200):
-        super().__init__(geom, vel_aero, vel_struct, fluid, out_folder)
+    def __init__(self, power, geom, vel_aero, vel_bend=None, fluid=None, out_folder=None, rpm0=200):
+        super().__init__(geom, vel_aero, vel_bend, fluid, out_folder)
         self.const_power = power
         self.rpm0 = rpm0
         self.rpm_list = np.zeros(len(vel_aero))
@@ -225,8 +205,8 @@ class ConstantPower(ConstantPitchPropeller):
 # Inherits from the ConstantPower class. Evaluates the performance of a constant pitch propeller at various velocities
 class ConstantRPM(ConstantPitchPropeller):
     # rpm: rpm the propeller will spin at
-    def __init__(self, rpm, geom, vel_aero, vel_struct=None, fluid=None, out_folder=None):
-        super().__init__(geom, vel_aero, vel_struct, fluid, out_folder)
+    def __init__(self, rpm, geom, vel_aero, vel_bend=None, fluid=None, out_folder=None):
+        super().__init__(geom, vel_aero, vel_bend, fluid, out_folder)
         self.rpm_list = rpm * np.ones(len(vel_aero))
 
     # returns a function that runs XROTOR at a constant rpm
@@ -254,8 +234,8 @@ class VariablePitch(ConstantPitchPropeller):
     #                  corresponding vel_aero velocity
     # rpm0: a float estimate of the propeller. Used to estimate the reynolds number airfoil performance is evaluated at
     # altitude: a float containing the altitude that the propeller is at. -1 means underwater
-    def __init__(self, power, geom, vel_aero, offset_list, vel_struct=None, fluid=None, out_folder=None, rpm0=200):
-        super().__init__(geom, vel_aero, vel_struct, fluid, out_folder)
+    def __init__(self, power, geom, vel_aero, offset_list, vel_bend=None, fluid=None, out_folder=None, rpm0=200):
+        super().__init__(geom, vel_aero, vel_bend, fluid, out_folder)
         self.const_power = power
         self.offset_list = offset_list
         self.vpp_offset = np.zeros(len(vel_aero))
@@ -268,7 +248,7 @@ class VariablePitch(ConstantPitchPropeller):
             constant_out = os.path.join(self.const_folder, f'{offset:.2f}')
             make_folder(self.const_folder)
             offset_geometry = geom.create_offset(offset)
-            self.constant_propellers.append(ConstantPower(self.const_power, offset_geometry, self.vel_list, vel_struct, fluid, constant_out, rpm0))
+            self.constant_propellers.append(ConstantPower(self.const_power, offset_geometry, self.vel_list, vel_bend, fluid, constant_out, rpm0))
 
     def _set_paths(self):
         self.const_folder = os.path.join(self.out_folder, 'constant_pitch')
@@ -282,7 +262,7 @@ class VariablePitch(ConstantPitchPropeller):
         return os.path.join(self.aero_plots, name)
 
     # creates a structural plot file
-    def struct_plot_file(self, name):
+    def _bend_plot_file(self, name):
         return os.path.join(self.structural_plots, name)
 
     # evaluates the aerodynamic data for each ConstantPower design
@@ -325,7 +305,7 @@ class VariablePitch(ConstantPitchPropeller):
             self.thrust_coef[i] = ideal_propeller.thrust_coef[i]
 
             if self.vel_struct[i] is not None:
-                self.structural.append(ideal_propeller.structural[i])
+                self.structural.append(ideal_propeller.bend_data[i])
 
     def plot_aero(self, name, save=False, disp=False):
         graphing.vpp_plot(self, name)
@@ -338,7 +318,7 @@ class VariablePitch(ConstantPitchPropeller):
         graphing.single_struct_plot(self, name)
         if save:
             make_folder(self.structural_plots)
-            plt.savefig(self.struct_plot_file(name))
+            plt.savefig(self._bend_plot_file(name))
         display_plot(disp)
 
 

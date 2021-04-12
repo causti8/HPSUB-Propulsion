@@ -84,8 +84,8 @@ def single_struct_plot(design, name):
         plt.ylabel('stress [MPa]')
         plt.xlabel('radial location (r/R)')
         for i in range(len(design.vel_list)):
-            if design.structural[i] is not None:
-                plt.plot(design.structural[i].data_top['r_over_r'], design.structural[i].von_misses / 10**6,
+            if design.bend_data[i] is not None:
+                plt.plot(design.bend_data[i].data_top['r_over_r'], design.bend_data[i].von_misses / 10 ** 6,
                          label=f'vel = {design.vel_list[i]:.2f}')
         plt.legend()
         plt.grid()

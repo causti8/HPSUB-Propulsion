@@ -1,7 +1,7 @@
 import designs
 import random
 import numpy as np
-import make_prop
+import prop_geom
 
 # initialize the population
 def init_population(num_sections, initial_geom):
@@ -173,7 +173,7 @@ def mutate(parent, possible_foils):
 # beta: angle at each radial section
 def make_func(speed, power, fluid, material, stress_max):
     def func(individual):
-        geom = make_prop.PropGeom()
+        geom = prop_geom.PropGeom()
         geom.diam = individual['diam']
         geom.hub_diam = individual['hub_diam']
         geom.r_over_r = individual['r_over_r']
