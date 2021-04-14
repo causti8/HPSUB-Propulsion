@@ -6,17 +6,17 @@ import matplotlib.pyplot as plt
 import file_tools
 
 
-'''
+
 aluminum = {
     'density': 2710,
     'elastic_modulus': 69e9,
     "poissons": 0.3
 }
 
-geometry = prop_geom.PropGeom('Prop_1', material=aluminum)
-geometry.set_aero(4, 500, 1e-6, 1000)
-geometry.write_aero('aero_test.csv')
-geometry.write_bend('bend_test.csv')
+geometry = prop_geom.PropGeom('prop_1', material=aluminum)
+v, rpm, nu, speed_sound = 3, 300, 1e-6, 1000
+geometry.set_aero(v, rpm, nu, speed_sound)
+geometry.write_aero('aero_test.txt')
 
 
 aluminum = {

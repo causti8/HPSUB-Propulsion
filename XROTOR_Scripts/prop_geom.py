@@ -4,38 +4,25 @@ import os
 import pandas as pd
 
 
-# a class made to contain all the information necessary to define a propeller shape. Made to contain airfoil structural
-# and aerodynamic performance information necessary for XROTOR
-# num_sections: the number of radial sections used to define propeller
-def best_re(foil_data, re):
-    min_dif = abs(foil_data['ref_re'][0] - re)
-    closest_row = foil_data.iloc[0]
-    for _, row in foil_data.iterrows():
-        if abs(row['ref_re'] - re) < min_dif:
-            min_dif = abs(row['ref_re'] - re)
-            closest_row = row
-    return closest_row
-
-
 class PropGeom:
     def __init__(self, propeller_file=None, material=None):
         if propeller_file is not None:
-
-            # reads the sections data from csv
             self.sections = pd.read_csv(geom_path(propeller_file), skiprows=2)
-
-            # reads the diam, hub_diam and blades from csv
             first_lines = pd.read_csv(geom_path(propeller_file), nrows=2)
-            diam, hub_diam, blades = first_lines.loc[0][:]
+            diam, hub_diam, blades = first_lines.loc[0][:3]
             self.diam, self.hub_diam, self.blades = float(diam), float(hub_diam), int(blades)
 
-            # creates a dataframe containing all the airfoil aerodynamic data
-            airfoil_data = pd.DataFrame()
+            foil_list = []
             for name in set(self.sections['airfoil']):
-                airfoil_data.append(pd.read_csv(aero_path(name)))
+                foil = pd.read_csv(aero_path(name))
+                foil['name'] = [name for _ in range(len(foil))]
+                foil_list.append(foil)
+            self.foil_data = pd.concat(foil_list, axis=0, ignore_index=True)
             self.curr_aero = None
         else:
-            self.size, self.sections, = None, None
+            self.sections = None
+            self.foil_data = None
+            self.diam, self.hub_diam, self.blades = None, None, None
 
         if material is not None:
             self._set_bend(material)
@@ -44,38 +31,29 @@ class PropGeom:
 
     # sets the Reynolds number at each airfoil along the blade
     def set_aero(self, v, rpm, nu, speed_sound):
-        reynolds = self._calc_re(v, rpm, nu)
+        self.curr_aero = pd.DataFrame()
+        chord = self.sections['chord_ratio'] * self.diam/2
+        radius = self.sections['rad_ratio'] * self.diam/2
+        self.curr_aero['re'] = calc_re(v, rpm, nu, chord, radius)
+        self.curr_aero['r'] = list(map(r_eqn, self.curr_aero['re']))
+        self.curr_aero['mach'] = calc_mach(v, rpm, radius, speed_sound)
+        self._foil_perf()
+
+    def _foil_perf(self):
         curr_aero = []
-
-        for foil, re in zip(self.aero_frames, reynolds):
-            curr_aero.append(best_re(foil, re))
-        self.curr_aero = pd.DataFrame(curr_aero)
-
-        self.curr_aero['re_actual'] = reynolds
-        self.curr_aero['r'] = list(map(r_eqn, reynolds))
-        self.curr_aero['mach'] = self._calc_mach(v, rpm, speed_sound)
-
-    def _calc_mach(self, v, rpm, speed_sound):
-        v_mag = self._blade_vel(v, rpm)
-        return v_mag / speed_sound
-
-    def _calc_re(self, v, rpm, nu):
-        v_mag = self._blade_vel(v, rpm)
-        chord = self.sections['chord_ratio'].to_numpy() * self.diam/2
-        return v_mag*chord / nu
-
-    def _blade_vel(self, v, rpm):
-        omega = rpm * (np.pi / 30)
-        vt = omega * self.sections['rad_ratio'].to_numpy() * self.diam / 2
-        return np.sqrt(v ** 2 + vt ** 2)
+        for i, row in self.sections.iterrows():
+            foil = self.foil_data[self.foil_data['name'] == row['airfoil']]
+            ind = (abs(foil['ref_re'] - self.curr_aero.loc[i, 're'])).idxmin()
+            curr_aero.append(foil.loc[ind, :].to_dict())
+        self.curr_aero = self.curr_aero.join(pd.DataFrame(curr_aero))
 
     def _set_bend(self, material):
         bend_data = []
         el = material['elastic_modulus']
         rho = material['density']
-        shear_mod = material['elastic_modulus'] / (2*(1+material['poissons']))
+        shear_mod = material['elastic_modulus'] / (2 * (1+material['poissons']))
         for _, sec in self.sections.iterrows():
-            file = pd.read_csv(structural_path(sec['foil_name']))
+            file = pd.read_csv(structural_path(sec['airfoil']))
             bend = file.iloc[0]
             a = {
                 'r': sec['rad_ratio'] * self.diam/2,
@@ -97,13 +75,29 @@ class PropGeom:
         self.bend_data.to_csv(file_name, sep='\t', float_format='%.4E', index=False)
 
     def write_aero(self, file_name):
-        self.curr_aero.to_csv(file_name, float_format='%.4E')
+        self.curr_aero.to_csv(file_name, float_format='%.4E', index=False)
 
     # creates a copy of the geometry object, but with an offset angle distribution. Made for VPP design
     def create_offset(self, offset):
         prop = copy.deepcopy(self)
         prop.sections['pitch'] = self.sections['pitch'] + offset
         return prop
+
+
+def calc_mach(v, rpm, radius, speed_sound):
+    v_mag = blade_vel(v, rpm, radius)
+    return v_mag / speed_sound
+
+
+def calc_re(v, rpm, nu, chord, radius):
+    v_mag = blade_vel(v, rpm, radius)
+    return v_mag*chord / nu
+
+
+def blade_vel(v, rpm, radius):
+    omega = rpm * (np.pi / 30)
+    vt = omega * radius
+    return np.sqrt(v ** 2 + vt ** 2)
 
 
 def r_eqn(reynolds):
@@ -113,6 +107,7 @@ def r_eqn(reynolds):
         return -1
     else:
         return -0.5
+
 
 # defines the path to airfoil aerodynamic performance files
 def aero_path(foil):
