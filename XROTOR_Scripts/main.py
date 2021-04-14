@@ -5,8 +5,6 @@ import speed_calculations
 import matplotlib.pyplot as plt
 import file_tools
 
-d1 = file_tools.extract_bend('out\\Prop_1\\structural\\0.79.txt')
-print()
 
 '''
 aluminum = {

@@ -2,22 +2,6 @@ import numpy as np
 import copy
 import os
 import pandas as pd
-import csv
-
-
-# defines the path to airfoil aerodynamic performance files
-def aero_path(foil):
-    return os.path.join('airfoils', f'{foil}.csv')
-
-
-# defines the path to the propeller geometry files
-def geom_path(propeller):
-    return os.path.join('propellers', f'{propeller}.csv')
-
-
-# defines the path to airfoil structural files
-def structural_path(foil):
-    return os.path.join('structural', f'{foil}.csv')
 
 
 # a class made to contain all the information necessary to define a propeller shape. Made to contain airfoil structural
@@ -33,22 +17,22 @@ def best_re(foil_data, re):
     return closest_row
 
 
-def r_eqn(reynolds):
-    if reynolds > 2e6:
-        return -0.15
-    elif reynolds > 200:
-        return -1
-    else:
-        return -0.5
-
-
 class PropGeom:
     def __init__(self, propeller_file=None, material=None):
         if propeller_file is not None:
+
+            # reads the sections data from csv
             self.sections = pd.read_csv(geom_path(propeller_file), skiprows=2)
+
+            # reads the diam, hub_diam and blades from csv
             first_lines = pd.read_csv(geom_path(propeller_file), nrows=2)
-            self.diam, self.hub_diam, self.blades = map(float, first_lines.iloc[0][:3])
-            self.aero_frames = list(map(lambda s: pd.read_csv(aero_path(s)), self.sections['foil_name']))
+            diam, hub_diam, blades = first_lines.loc[0][:]
+            self.diam, self.hub_diam, self.blades = float(diam), float(hub_diam), int(blades)
+
+            # creates a dataframe containing all the airfoil aerodynamic data
+            airfoil_data = pd.DataFrame()
+            for name in set(self.sections['airfoil']):
+                airfoil_data.append(pd.read_csv(aero_path(name)))
             self.curr_aero = None
         else:
             self.size, self.sections, = None, None
@@ -120,3 +104,26 @@ class PropGeom:
         prop = copy.deepcopy(self)
         prop.sections['pitch'] = self.sections['pitch'] + offset
         return prop
+
+
+def r_eqn(reynolds):
+    if reynolds > 2e6:
+        return -0.15
+    elif reynolds > 200:
+        return -1
+    else:
+        return -0.5
+
+# defines the path to airfoil aerodynamic performance files
+def aero_path(foil):
+    return os.path.join('airfoils', f'{foil}.csv')
+
+
+# defines the path to the propeller geometry files
+def geom_path(propeller):
+    return os.path.join('propellers', f'{propeller}.csv')
+
+
+# defines the path to airfoil structural files
+def structural_path(foil):
+    return os.path.join('airfoils_bend', f'{foil}.csv')

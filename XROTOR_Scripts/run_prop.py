@@ -103,56 +103,30 @@ def set_foils(xr, geom):
 # liquid: liquid propeller is in
 # pwr: power to run the propeller at
 # verbose: True will cause the XROTOR inputs to be output to console
-def run(geom, vel, rpm, solver, outfile, fluid, pwr=False, verbose=False):
-    overwrite(outfile)
+def run(geom, vel, rpm, solver, aero_file, fluid, pwr=None, bend_file=None, verbose=False):
+    overwrite(aero_file)
     xr = initialize_xrotor(geom, vel, rpm, solver, fluid, verbose)
 
     xr("RPM")          # set RPM
     xr(rpm)
 
-    if pwr is not False:
+    if pwr is not None:
         xr("POWE")  # set RPM
         xr(pwr)
         xr("P")
 
     xr("WRIT")         # write to file
-    xr(outfile)
+    xr(aero_file)
     xr("")             # exit to main menu
 
-    # xr("VPUT")
-    # xr("test.txt")
-    xr.finalize()
-
-
-def evaluate_strength(geom, vel, rpm, solver, struct_file, outfile, liquid, verbose, pwr=None):
-    overwrite(outfile)
-    overwrite('temp_aero.txt')
-
-    xr = initialize_xrotor(geom, vel, rpm, solver, liquid, verbose)
-
-    xr("RPM")  # set RPM
-    xr(rpm)
-
-    if pwr is not False:
-        xr("POWE")  # set RPM
-        xr(pwr)
-        xr("P")
-
-
-
-    xr("")
-
-    xr("BEND")
-    xr(f"READ {struct_file}")
-    xr("EVAL")
-    xr(f"WRIT {outfile}")
-    xr("")
-
-    # xr("VPUT")
-    # xr("test.txt")
+    if bend_file is not None:
+        xr("BEND")
+        xr(f"READ {bend_file}")
+        xr("EVAL")
+        xr(f"WRIT {aero_file}")
+        xr("")
 
     xr.finalize()
-
 
 
 def overwrite(file):

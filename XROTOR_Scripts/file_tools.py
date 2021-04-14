@@ -45,74 +45,28 @@ def extract_bend(file_name):
 
 
 # extracts the data from a XROTOR structural output file
-class ExtractStructural:
-    def __init__(self, file_name):
-        # number of airfoil sections made by XROTOR
-        num_sections = 30
-        self.sxx = None
-        self.syy = None
-        self.szz = None
-        self.sxy = None
-        self.von_misses = np.zeros(num_sections)
+# returns the data
+def extract_structural(file_name):
+    num_rows = 30
+    new_name = file_name.replace('.txt', '.csv')
+    convert_txt_to_csv(file_name, new_name)
+    df1 = pd.read_csv(new_name, skiprow=2, nrows=num_rows)
+    df2 = pd.read_csv(new_name, skiprows=num_rows+6)
+    return df1.join(df2)
 
-        self.data_top = {
-            "r_over_r": np.zeros(num_sections),
-            "forward_displacement": np.zeros(num_sections),
-            "tangent_displacement": np.zeros(num_sections),
-            "torsional_displacement": np.zeros(num_sections),
-            "forward_moment": np.zeros(num_sections),
-            "tangent_moment": np.zeros(num_sections),
-            "torsion": np.zeros(num_sections),
-            "spanwise_force": np.zeros(num_sections),
-            "forward_force": np.zeros(num_sections),
-            "tangent_force": np.zeros(num_sections)
-        }
 
-        self.data_bottom = {
-            "strain_xx": np.zeros(num_sections),
-            "strain_zz": np.zeros(num_sections),
-            "strain_yy": np.zeros(num_sections),
-            "strain_max": np.zeros(num_sections),
-            "strain_xz": np.zeros(num_sections),
-        }
+# calculates the von-misses stress at each section
+def calc_stress(elastic_modulus, poissons_ratio):
+    zipped_arrays = zip(range(len(self.von_misses)), self.data_bottom['strain_xx'], self.data_bottom['strain_yy'],
+                        self.data_bottom['strain_zz'], self.data_bottom['strain_xz'])
 
-        with open(file_name) as file:
-            # first 3 lines don't include data
-            for _ in range(3):
-                file.readline()
+    for i, sxx, syy, szz, sxz in zipped_arrays:
+        stiffness_matrix = make_stiff_3d(elastic_modulus, poissons_ratio)
+        strain_vector = np.array([[sxx, syy, szz, 0, sxz, 0]]).T
 
-            # takes top section of data. Makes more sense if you look at a structural file
-            for radial_section in range(num_sections):
-                line_array = file.readline().split()
-                for column, dict_name in enumerate(self.data_top.keys()):
-                    self.data_top[dict_name][radial_section] = float(line_array[column + 1])
+        stress_vector = stiffness_matrix @ strain_vector
 
-            # skips 2 lines that don't include data
-            for _ in range(2):
-                file.readline()
-
-            # takes bottom section of data.
-            for radial_section in range(num_sections):
-                line_array = file.readline().split()
-                for column, dict_name in enumerate(self.data_bottom.keys()):
-                    self.data_bottom[dict_name][radial_section] = float(line_array[column + 2])
-
-            # divides all data by 1000
-            for dict_name in self.data_bottom.keys():
-                self.data_bottom[dict_name] = self.data_bottom[dict_name] / 1000
-
-    # calculates the von-misses stress at each section
-    def calc_stress(self, elastic_modulus, poissons_ratio):
-        zipped_arrays = zip(range(len(self.von_misses)), self.data_bottom['strain_xx'], self.data_bottom['strain_yy'],
-                            self.data_bottom['strain_zz'], self.data_bottom['strain_xz'])
-
-        for i, sxx, syy, szz, sxz in zipped_arrays:
-            stiffness_matrix = make_stiff_3d(elastic_modulus, poissons_ratio)
-            strain_vector = np.array([[sxx, syy, szz, 0, sxz, 0]]).T
-
-            stress_vector = stiffness_matrix @ strain_vector
-
-            self.von_misses[i] = calc_von_misses(stress_vector)
+        self.von_misses[i] = calc_von_misses(stress_vector)
 
 
 # function to create a 3d stiffness matrix

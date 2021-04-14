@@ -21,12 +21,12 @@ class ConstantPitchPropeller:
     # vel_structural: a 1d array boolean array indicating whether to evaluate stress at corresponding vel_aero velocity
     # fluid: dictionary containing the properties of the fluid the propeller is in
 
-    def __init__(self, geom, vel, bend, fluid=None, out_folder=None):
+    def __init__(self, geom, vel, bend=True, fluid=None, out_folder=None, verbose=False):
         self.fluid = fluid
         self.geom = geom
-
-        self.aero_vel = vel
-        vel_bend = filter(lambda x: x != 0, vel*bend)
+        self.verbose = verbose
+        self.bend = bend
+        self.vel = vel
 
         # default fluid to characteristics of water
         if fluid is None:
@@ -73,72 +73,32 @@ class ConstantPitchPropeller:
     # meant to be called after the object is created. Evaluates the aerodynamic and structural performance of the
     # propeller design at every velocity in vel_aero. Outputs the performance data as .txt files to the out_folder.
     # verbose: whether to print the XROTOR commands to the console
-    def evaluate_performance(self, verbose=False):
+    def eval_performance(self, verbose=False):
         # clearing old files, and creating new folder system
         clear_path(self.out_folder)
         make_folder(self.out_folder)
         make_folder(self.aero_folder)
 
-        if self.bend_data:
+        if self.bend:
             make_folder(self.structural_folder)
             self.geom.write_bend(self.structural_geometry)
+        [self.eval_vel(vel) for vel in self.vel]
 
-        # create the function that evaluates the aerodynamics
-        self.run_aero = self._aero_eval(verbose)
-
-        self.aero_data.append(self.vel_file(self.vel))
-        map(self._eval, self.aero_data['vel'])
-
-
-    # Cycles through solvers to try to ensure convergence.
-    # vel: velocity to evaluate aerodynamic data at
-    # verbose: whether to print XROTOR commands to console
-    def _get_convergence(self, vel):
-        # runs using the vortex-element theory
-        solver = "VRTX"
-        contents = self.run_aero(vel, solver)
-
-        # runs using the potential flow theory
-        if not contents.converged:
-            solver = "POT"
-            contents = self.run_aero(vel, solver)
-
-        # runs using the graded momentum theory
-        if not contents.converged:
-            solver = "GRAD"
-            contents = self.run_aero(vel, solver)
-        return contents.rpm, solver, contents.converged
-
-    # function to be defined in child classes
-    def _eval(self, verbose):
+    # function to run at each velocity
+    def eval_vel(self, verbose):
         pass
-'''
-    # compiles the data in the files output by XROTOR. Meant to be run after running evaluate_performance
+
+    # evaluate aerodynamic performance at constant power
+    def _run_vel(self, vel, rpm, solver, pwr=None, bend_file=None):
+        aero_file = self.vel_file(vel)
+        if bend_file is not None:
+            bend_file = self.structural_file(vel)
+        run_prop.run(self.geom, vel, rpm, solver, aero_file, self.fluid, pwr, bend_file, verbose=self.verbose)
+
     def compile_data(self):
-        data = []
-        for i, vel in enumerate(self.vel_list):
-            file_name = self.vel_file(vel)
-            data.append()
-            if self.vel_struct[i]:
-                self.bend_data.append(file_tools.ExtractStructural(self.structural_file(self.vel_list[i])))
-                self.bend_data[i].calc_stress(self.geom.material['elastic_modulus'],
-                                              self.geom.material["poisson's"])
-            else:
-                self.bend_data.append(None)
+        pass
 
-            else:
-                self.torque_list[i] = np.NaN
-                self.thrust_list[i] = np.NaN
-                self.rpm_list[i] = np.NaN
-                self.efficiency_list[i] = np.NaN
-                self.efficiency_ideal[i] = np.NaN
-                self.bend_data.append(None)
 
-        self.advance_ratio = calc_advance_ratio(self.vel_list, self.rpm_list, self.geom.diam)
-        self.thrust_coef = calc_thrust_coef(self.fluid['density'], self.rpm_list, self.geom.diam, self.thrust_list)
-        self.torque_coef = calc_torque_coef(self.fluid['density'], self.rpm_list, self.geom.diam, self.torque_list)
-'''
-\
 # creates performance plots
 # name: the name of the plot. ie. "thrust", "torque", "efficiency"
 # save: saves plot
@@ -169,26 +129,9 @@ class ConstantPower(ConstantPitchPropeller):
         self.rpm0 = rpm0
         self.rpm_list = np.zeros(len(vel_aero))
 
-    # returns a function that runs the XROTOR aerodynamics at a constant power at a specific velocity
-    def _aero_eval(self, verbose):
-        def func(vel, solver):
-            run_prop.run(self.geom, vel, self.rpm0, solver, self.vel_file(vel), self.fluid, self.const_power, verbose)
-            file_name = self.vel_file(vel)
-            contents = file_tools.ExtractAero(file_name)
-            if contents.converged:
-                while abs(contents.rpm - self.rpm0) / contents.rpm > 0.1:
-                    self.rpm0 = contents.rpm
-                    run_prop.run(self.geom, vel, self.rpm0, solver, self.vel_file(vel), self.fluid, self.const_power,
-                                 verbose)
-                    contents = file_tools.ExtractAero(file_name)
-                self.rpm0 = contents.rpm
-            return contents
-        return func
+    def eval_vel(self, verbose):
+        run_vel()
 
-    # returns a function that runs XROTOR aerodynamics and structural at a constant power
-    def _structural_eval(self, vel, solver, verbose):
-        run_prop.evaluate_strength(self.geom, vel, self.rpm0, solver, self.structural_geometry,
-                                   self.structural_file(vel), self.fluid, verbose, self.const_power)
 
 
 # Inherits from the ConstantPower class. Evaluates the performance of a constant pitch propeller at various velocities
