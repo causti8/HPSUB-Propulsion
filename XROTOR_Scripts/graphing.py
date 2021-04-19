@@ -2,109 +2,128 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def single_plot(design, name):
-    if name == 'thrust':
+def single_plot(name, aero_data):
+    if 'thrust' == name:
         plt.figure()
         plt.xlabel('Velocity [Knots]')
         plt.ylabel('Thrust [N]')
         plt.title('Thrust vs Velocity')
         plt.grid()
 
-        plt.plot(mps_to_knot(design.vel_list), nullify_negatives(design.thrust_list), label='actual')
-        plt.plot(mps_to_knot(design.vel_list), nullify_negatives(design.power*design.efficiency_ideal/design.vel_list),
-                 label='ideal')
-        plt.plot(mps_to_knot(design.vel_list), nullify_negatives(design.power/design.vel_list), label='100% efficient')
+        plt.plot(mps_to_knot(aero_data['vel']), aero_data['thrust'], label='actual')
+        plt.plot(mps_to_knot(aero_data['vel']),
+                 aero_data['power'] * aero_data['efficiency_ideal'] / aero_data['vel'], label='ideal')
+        plt.plot(mps_to_knot(aero_data['vel']), (aero_data['power'] / aero_data['vel']), label='100% efficient')
         plt.legend()
-        plt.ylim([0, 1.1*np.nanmax(design.thrust_list)])
+        plt.ylim([0, 1.1 * np.nanmax(aero_data['thrust'])])
 
-    if name == 'torque':
+    if 'torque' == name:
         plt.figure()
         plt.xlabel('Velocity [Knots]')
         plt.ylabel('Torque [N-m]')
         plt.title('Torque vs Velocity')
         plt.grid()
 
-        plt.plot(mps_to_knot(design.vel_list),
-                 nullify_negatives(design.torque_list)
-                 )
+        plt.plot(mps_to_knot(aero_data['vel']), aero_data['torque'])
 
-    if name == 'efficiency':
+    if 'efficiency' == name:
         plt.figure()
         plt.xlabel('Velocity [Knots]')
         plt.ylabel('Efficiency')
         plt.title('Efficiency vs Velocity')
         plt.grid()
 
-        plt.plot(mps_to_knot(design.vel_list), nullify_efficiency(design.efficiency_list), label='Efficiency')
-        plt.plot(mps_to_knot(design.vel_list), nullify_negatives(design.efficiency_ideal), label='Ideal Efficiency')
+        plt.plot(mps_to_knot(aero_data['vel']), (aero_data['efficiency']), label='Efficiency')
+        plt.plot(mps_to_knot(aero_data['vel']), (aero_data['efficiency_ideal']), label='Ideal Efficiency')
         plt.legend()
 
-    if name == 'RPM':
+    if 'RPM' == name:
         plt.figure()
         plt.xlabel('Velocity [Knots]')
         plt.ylabel('RPM')
         plt.title('RPM vs Velocity')
         plt.grid()
 
-        plt.plot(mps_to_knot(design.vel_list),
-                 design.rpm_list
+        plt.plot(mps_to_knot(aero_data['vel']),
+                 aero_data['rpm']
                  )
 
-    if name == 'coefficients':
+    if 'coefficients' == name:
         plt.figure()
         plt.xlabel('Advance Ratio J')
         plt.title('Coefficients Plot')
         plt.grid()
 
-        plt.plot(design.advance_ratio,
-                 nullify_efficiency(design.efficiency_list),
+        plt.plot(aero_data['advance_ratio'],
+                 (aero_data['efficiency']),
                  label=r'$\eta$',
                  )
-        plt.plot(design.advance_ratio,
-                 nullify_negatives(design.thrust_coef),
+        plt.plot(aero_data['advance_ratio'],
+                 (aero_data['thrust_coef']),
                  label=r'$C_t$')
-        plt.plot(design.advance_ratio,
-                 10 * nullify_negatives(design.torque_coef),
+        plt.plot(aero_data['advance_ratio'],
+                 10 * (aero_data['torque_coef']),
                  label=r'$10 \times C_q$')
         plt.legend()
 
-    if name == 'displacement':
+    if 'displacement' == name:
         plt.xlabel('Displacement [m]')
         plt.ylabel('Velocity [Knots]')
         plt.title('Velocity vs Displacement')
         plt.grid()
 
-        plt.plot(design.displacement, mps_to_knot(design.vel_list))
+        plt.plot(aero_data['displacement'], mps_to_knot(aero_data['vel']))
 
 
-def single_struct_plot(design, name):
-    if name == 'von_misses':
+def single_struct_plot(name, bend_data):
+    if 'von_misses' == name:
         plt.figure()
         plt.title('Blade Stress')
         plt.ylabel('stress [MPa]')
         plt.xlabel('radial location (r/R)')
-        for i in range(len(design.vel_list)):
-            if design.bend_data[i] is not None:
-                plt.plot(design.bend_data[i].data_top['r_over_r'], design.bend_data[i].von_misses / 10 ** 6,
-                         label=f'vel = {design.vel_list[i]:.2f}')
+        for vel in set(bend_data['vel']):
+            data_vel = bend_data[bend_data['vel'] == vel]
+            plt.plot(data_vel['r/R'], data_vel['von_misses'] / 10 ** 6, label=f'vel = {mps_to_knot(vel):.2f} [knots]')
         plt.legend()
         plt.grid()
 
 
-def vpp_plot(variable_pitch, name):
+def plot_race(race_data, initial_gate, final_gate):
+    plt.figure()
+    plt.title('Speed Along Racetrack')
+    plt.xlabel('Displacement [m]')
+    plt.ylabel('Speed [knots]')
+    plt.xlim([0, 1.1*final_gate])
+    plt.grid()
+
+    plt.plot(race_data['displacement'], mps_to_knot(race_data['vel']), label='actual')
+    # plt.plot(race_data['ideal_displacement'], mps_to_knot(race_data['vel']), label='100% efficiency')
+
+    gate1_speed = mps_to_knot(find_speed(race_data, initial_gate))
+    gate2_speed = mps_to_knot(find_speed(race_data, final_gate))
+    top_speed = mps_to_knot(race_data.loc[race_data['displacement'].idxmax(), 'vel'])
+
+    if not np.isnan(gate1_speed):
+        plt.axvline(initial_gate, ls='--', color='green', label=f'first gate, Vel = {gate1_speed:.2f}')
+
+        if not np.isnan(gate2_speed):
+            plt.axvline(final_gate, ls='--', color='red', label=f'second gate, Vel = {gate2_speed:.2f}')
+
+    plt.ylim([0, top_speed*1.1])
+    plt.legend()
+
+
+def vpp_plot(aero, aero_all, name):
     if name == 'thrust':
         plt.figure()
         plt.title('Thrust vs Velocity')
         plt.ylabel('Thrust [N]')
         plt.xlabel('Velocity [knots]')
-        for i, constant_pitch in enumerate(variable_pitch.constant_propellers):
-            plt.plot(mps_to_knot(variable_pitch.vel_list),
-                     constant_pitch.thrust_list,
-                     '--', label=f'{variable_pitch.offset_list[i]:.2f}'
-                     )
-        plt.plot(mps_to_knot(variable_pitch.vel_list),
-                 variable_pitch.thrust_list,
-                 label='VPP Performance')
+
+        for off in set(aero_all['angle_offset']):
+            masked = aero_all[aero_all['angle_offset'] == off]
+            plt.plot(mps_to_knot(masked['vel']), masked['thrust'], '--', label=f'{off}')
+        plt.plot(mps_to_knot(aero['vel']), aero['thrust'], label='VPP Performance')
         plt.legend()
         plt.grid()
 
@@ -113,29 +132,22 @@ def vpp_plot(variable_pitch, name):
         plt.title('Torque vs Velocity')
         plt.ylabel('Torque [N-m]')
         plt.xlabel('Velocity [knots]')
-        for i, constant_pitch in enumerate(variable_pitch.constant_propellers):
-            plt.plot(mps_to_knot(variable_pitch.vel_list),
-                     constant_pitch.torque_list,
-                     '--', label=f'{variable_pitch.offset_list[i]:.2f}'
-                     )
-        plt.plot(mps_to_knot(variable_pitch.vel_list),
-                 variable_pitch.torque_list,
-                 label='VPP Performance')
+        for off in set(aero_all['angle_offset']):
+            masked = aero_all[aero_all['angle_offset'] == off]
+            plt.plot(mps_to_knot(masked['vel']), masked['torque'], '--', label=f'{off}')
+        plt.plot(mps_to_knot(aero['vel']), aero['torque'], label='VPP Performance')
+        plt.legend()
+        plt.grid()
         plt.legend()
 
     if name == 'efficiency':
-        plt.figure()
-        plt.title('Efficiency vs Velocity')
-        plt.ylabel('Efficiency')
-        plt.xlabel('Velocity [knots]')
-        for i, constant_pitch in enumerate(variable_pitch.constant_propellers):
-            plt.plot(mps_to_knot(variable_pitch.vel_list),
-                     constant_pitch.efficiency_list,
-                     '--', label=f'{variable_pitch.offset_list[i]:.2f}'
-                     )
-            plt.plot(mps_to_knot(variable_pitch.vel_list),
-                     variable_pitch.efficiency_list,
-                     label='VPP Performance')
+        for off in set(aero_all['angle_offset']):
+            masked = aero_all[aero_all['angle_offset'] == off]
+            plt.plot(mps_to_knot(masked['vel']), masked['efficiency'], '--', label=f'{off}')
+        plt.plot(mps_to_knot(aero['vel']), aero['efficiency'], label='VPP Performance')
+
+        plt.legend()
+        plt.grid()
         plt.legend()
 
     if name == 'RPM':
@@ -143,53 +155,32 @@ def vpp_plot(variable_pitch, name):
         plt.title('RPM vs Velocity')
         plt.ylabel('RPM')
         plt.xlabel('Velocity [knots]')
-        for i, constant_pitch in enumerate(variable_pitch.constant_propellers):
-            plt.plot(mps_to_knot(variable_pitch.vel_list),
-                     constant_pitch.rpm_list,
-                     '--', label=f'{variable_pitch.offset_list[i]:.2f}'
-                     )
-            plt.plot(mps_to_knot(variable_pitch.vel_list),
-                     variable_pitch.rpm_list,
-                     label='VPP Performance')
+        for off in set(aero_all['angle_offset']):
+            masked = aero_all[aero_all['angle_offset'] == off]
+            plt.plot(mps_to_knot(masked['vel']), masked['efficiency'], '--', label=f'{off}')
+        plt.plot(mps_to_knot(aero['vel']), aero['efficiency'], label='VPP Performance')
+
+        plt.grid()
+        plt.legend()
         plt.legend()
 
     if name == 'coefficients':
         plt.figure()
         plt.xlabel('Advance Ratio J')
         plt.title('Coefficients Plot')
-        plt.grid()
 
-        plt.plot(variable_pitch.advance_ratio,
-                 nullify_efficiency(variable_pitch.efficiency_list),
-                 label=r'$\eta$',
-                 )
-        plt.plot(variable_pitch.advance_ratio,
-                 nullify_negatives(variable_pitch.thrust_coef),
-                 label=r'$C_t$')
-        plt.plot(variable_pitch.advance_ratio,
-                 10 * nullify_negatives(variable_pitch.torque_coef),
-                 label=r'$10 \times C_q$')
+        plt.plot(aero['advance_ratio'], aero['efficiency_list'], label=r'$\eta$')
+        plt.plot(aero['advance_ratio'], (aero['thrust_coef']), label=r'$C_t$')
+        plt.plot(aero['advance_ratio'], 10 * (aero['torque_coef']), label=r'$10 \times C_q$')
+
+        plt.grid()
         plt.legend()
 
 
-def nullify_negatives(vector):
-    new_vector = np.copy(vector)
-    for i in range(len(vector)):
-        if not np.isnan(vector[i]):
-            if vector[i] < 0:
-                new_vector[i] = np.NaN
-    return new_vector
-
-
-def nullify_efficiency(vector):
-    new_vector = np.copy(vector)
-    for i in range(len(vector)):
-        if not np.isnan(vector[i]):
-            if vector[i] > 1:
-                new_vector[i] = np.NaN
-            elif vector[i] < 0:
-                new_vector[i] = np.NaN
-    return new_vector
+def find_speed(race_data, location):
+    low_ind = race_data[race_data['displacement'] < location]['vel'].idxmax()
+    high_ind = race_data[race_data['displacement'] > location]['vel'].idxmin()
+    return (race_data.loc[low_ind, 'vel'] + race_data.loc[high_ind, 'vel']) / 2
 
 
 def mps_to_knot(velocity):

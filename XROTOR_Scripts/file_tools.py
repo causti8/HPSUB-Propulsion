@@ -16,9 +16,14 @@ def extract_aero(file_name):
             if 'thrust' in line:
                 data['thrust'], data['power'], data['torque'] = remove_words(line)
             if 'Efficiency' in line:
-                data['efficiency'], data['vel'], data['rpm'] = remove_words(line)
+                data['efficiency'], _, data['rpm'] = remove_words(line)
             if 'Eff ideal' in line:
                 _, data['efficiency_ideal'], _ = remove_words(line)
+            if 'Ct' in line:
+                data['torque_coef'], data['power_coef'], data['advance_ratio'] = remove_words2(line)
+            if 'Tc' in line:
+                data['thrust_coef'], data['pwer'], data['asdf'] = remove_words2(line)
+    return data
 
 
 # takes in a line from an aerodynamic file and parses the line into 3 numbers
@@ -36,37 +41,38 @@ def remove_words(line):
     return token_1, token_2, token_3
 
 
-def extract_bend(file_name):
-    new_file_name = file_name.replace('.txt', '.csv')
-    convert_txt_to_csv(file_name, new_file_name)
-    num_sections = 30
-    data1 = pd.read_csv(new_file_name, skiprows=(0, 2), nrows=num_sections)
-    return data1
-
+def remove_words2(line):
+    token_1 = safe_float(line[19:33].strip())
+    token_2 = safe_float(line[38:50].strip())
+    token_3 = safe_float(line[55:66].strip())
+    return token_1, token_2, token_3
 
 # extracts the data from a XROTOR structural output file
 # returns the data
-def extract_structural(file_name):
+def extract_bend(file_name, material):
     num_rows = 30
     new_name = file_name.replace('.txt', '.csv')
     convert_txt_to_csv(file_name, new_name)
-    df1 = pd.read_csv(new_name, skiprow=2, nrows=num_rows)
-    df2 = pd.read_csv(new_name, skiprows=num_rows+6)
+    skiprows = [0, 2]
+    df1 = pd.read_csv(new_name, skiprows=skiprows, nrows=num_rows)
+    df1 = df1.drop(columns='i')
+    df2 = pd.read_csv(new_name, skiprows=num_rows+3)
+    df2 = df2.drop(columns=['r/R', 'i', 'x', '1000'])
+    df2 = df2.div(1000)
+    df2['von_misses'] = calc_stress(df2, material['elastic_modulus'], material['poissons'])
     return df1.join(df2)
 
 
 # calculates the von-misses stress at each section
-def calc_stress(elastic_modulus, poissons_ratio):
-    zipped_arrays = zip(range(len(self.von_misses)), self.data_bottom['strain_xx'], self.data_bottom['strain_yy'],
-                        self.data_bottom['strain_zz'], self.data_bottom['strain_xz'])
+def calc_stress(df, elastic, poissons):
+    return [calc_von_misses(row, elastic, poissons) for _, row in df.iterrows()]
 
-    for i, sxx, syy, szz, sxz in zipped_arrays:
-        stiffness_matrix = make_stiff_3d(elastic_modulus, poissons_ratio)
-        strain_vector = np.array([[sxx, syy, szz, 0, sxz, 0]]).T
 
-        stress_vector = stiffness_matrix @ strain_vector
-
-        self.von_misses[i] = calc_von_misses(stress_vector)
+def calc_von_misses(row, elastic_modulus, poissons):
+    stiffness_matrix = make_stiff_3d(elastic_modulus, poissons)
+    strain_vector = np.array([[row['Ex'], row['Ey'], row['Ez'], 0, row['g'], 0]]).T
+    stress_vector = stiffness_matrix @ strain_vector
+    return von_misses_eqn(stress_vector)
 
 
 # function to create a 3d stiffness matrix
@@ -79,7 +85,7 @@ def make_stiff_3d(elastic_modulus, poissons_ratio):
 
 
 # function finds the von-mises stress from a stress vector
-def calc_von_misses(stress_vector):
+def von_misses_eqn(stress_vector):
     term1 = (stress_vector[0] - stress_vector[1])**2 + \
             (stress_vector[1] - stress_vector[2])**2 + \
             (stress_vector[2] - stress_vector[0])**2

@@ -6,6 +6,7 @@ import pandas as pd
 
 class PropGeom:
     def __init__(self, propeller_file=None, material=None):
+        self.name = propeller_file
         if propeller_file is not None:
             self.sections = pd.read_csv(geom_path(propeller_file), skiprows=2)
             first_lines = pd.read_csv(geom_path(propeller_file), nrows=2)
@@ -24,6 +25,7 @@ class PropGeom:
             self.foil_data = None
             self.diam, self.hub_diam, self.blades = None, None, None
 
+        self.material = material
         if material is not None:
             self._set_bend(material)
         else:
@@ -36,7 +38,6 @@ class PropGeom:
         radius = self.sections['rad_ratio'] * self.diam/2
         self.curr_aero['re'] = calc_re(v, rpm, nu, chord, radius)
         self.curr_aero['r'] = list(map(r_eqn, self.curr_aero['re']))
-        self.curr_aero['mach'] = calc_mach(v, rpm, radius, speed_sound)
         self._foil_perf()
 
     def _foil_perf(self):
@@ -84,11 +85,6 @@ class PropGeom:
         return prop
 
 
-def calc_mach(v, rpm, radius, speed_sound):
-    v_mag = blade_vel(v, rpm, radius)
-    return v_mag / speed_sound
-
-
 def calc_re(v, rpm, nu, chord, radius):
     v_mag = blade_vel(v, rpm, radius)
     return v_mag*chord / nu
@@ -103,7 +99,7 @@ def blade_vel(v, rpm, radius):
 def r_eqn(reynolds):
     if reynolds > 2e6:
         return -0.15
-    elif reynolds > 200:
+    elif reynolds > 2e5:
         return -1
     else:
         return -0.5

@@ -1,6 +1,7 @@
 diam,hub_diam,blades,
 0.6,0.101,2,
 rad_ratio,chord_ratio,pitch,airfoil
-0.3,0.3,50,NACA_4418
-0.5,0.15,30,NACA_4412
-1,0.2,10,NACA_4412
+0.17,0.12,60,NACA_4418
+0.35,0.12,42,NACA_4412
+0.8,0.04,26,NACA_4412
+1,0.002,24,NACA_4412

@@ -5,7 +5,7 @@ import prop_geom
 
 # initialize the population
 def init_population(num_sections, initial_geom):
-
+    pass
 
 
 # run multiple generations
